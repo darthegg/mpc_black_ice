@@ -16,7 +16,6 @@ https://carla.readthedocs.io/en/latest/configuring_the_simulation/
 import glob
 import os
 import sys
-import time
 
 try:
     sys.path.append(

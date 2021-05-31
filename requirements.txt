@@ -3,7 +3,7 @@ pygame
 
 black
 isort
-flake8
+flake8 == 3.8.4
 pylint
 pytest
 pytest-pylint

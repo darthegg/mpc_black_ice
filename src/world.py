@@ -3,21 +3,18 @@ import os
 import random
 import sys
 
-try:
-    sys.path.append(
-        glob.glob(
-            "/opt/carla-simulator/PythonAPI/carla/dist/carla-*%d.%d-%s.egg"
-            % (sys.version_info.major, sys.version_info.minor, "win-amd64" if os.name == "nt" else "linux-x86_64")
-        )[0]
-    )
-except IndexError:
-    pass
+sys.path.append(
+    glob.glob(
+        "/opt/carla-simulator/PythonAPI/carla/dist/carla-*%d.%d-%s.egg"
+        % (sys.version_info.major, sys.version_info.minor, "win-amd64" if os.name == "nt" else "linux-x86_64")
+    )[0]
+)
 
 import carla
 
 from src.camera import CameraManager
 from src.sensors import CollisionSensor, GnssSensor, IMUSensor, LaneInvasionSensor, RadarSensor
-from src.utils import find_weather_presets, get_actor_display_name
+from src.utils import get_actor_display_name
 
 
 class World:
@@ -39,8 +36,6 @@ class World:
         self.imu_sensor = None
         self.radar_sensor = None
         self.camera_manager = None
-        self._weather_presets = find_weather_presets()
-        self._weather_index = 0
         self._actor_filter = args.filter
         self._gamma = args.gamma
         self.restart()
@@ -118,13 +113,6 @@ class World:
         self.camera_manager.set_sensor(cam_index, notify=False)
         actor_type = get_actor_display_name(self.player)
         self.hud.notification(actor_type)
-
-    def next_weather(self, reverse=False):
-        self._weather_index += -1 if reverse else 1
-        self._weather_index %= len(self._weather_presets)
-        preset = self._weather_presets[self._weather_index]
-        self.hud.notification("Weather: %s" % preset[1])
-        self.player.get_world().set_weather(preset[0])
 
     def next_map_layer(self, reverse=False):
         self.current_map_layer += -1 if reverse else 1

@@ -1,22 +1,8 @@
 import datetime
-import glob
 import math
 import os
-import sys
 
 import pygame
-
-try:
-    sys.path.append(
-        glob.glob(
-            "/opt/carla-simulator/PythonAPI/carla/dist/carla-*%d.%d-%s.egg"
-            % (sys.version_info.major, sys.version_info.minor, "win-amd64" if os.name == "nt" else "linux-x86_64")
-        )[0]
-    )
-except IndexError:
-    pass
-
-import carla
 
 from src.utils import get_actor_display_name
 
@@ -79,30 +65,18 @@ class HUD:
             "Height:  % 18.0f m" % t.location.z,
             "",
         ]
-        if isinstance(c, carla.VehicleControl):
-            self._info_text += [
-                ("Throttle:", c.throttle, 0.0, 1.0),
-                ("Steer:", c.steer, -1.0, 1.0),
-                ("Brake:", c.brake, 0.0, 1.0),
-                ("Reverse:", c.reverse),
-                ("Hand brake:", c.hand_brake),
-                ("Manual:", c.manual_gear_shift),
-                "Gear:        %s" % {-1: "R", 0: "N"}.get(c.gear, c.gear),
-            ]
-        elif isinstance(c, carla.WalkerControl):
-            self._info_text += [("Speed:", c.speed, 0.0, 5.556), ("Jump:", c.jump)]
+
+        self._info_text += [
+            ("Throttle:", c.throttle, 0.0, 1.0),
+            ("Steer:", c.steer, -1.0, 1.0),
+            ("Brake:", c.brake, 0.0, 1.0),
+            ("Reverse:", c.reverse),
+            ("Hand brake:", c.hand_brake),
+            ("Manual:", c.manual_gear_shift),
+            "Gear:        %s" % {-1: "R", 0: "N"}.get(c.gear, c.gear),
+        ]
+
         self._info_text += ["", "Collision:", collision, "", "Number of vehicles: % 8d" % len(vehicles)]
-        if len(vehicles) > 1:
-            self._info_text += ["Nearby vehicles:"]
-            distance = lambda l: math.sqrt(
-                (l.x - t.location.x) ** 2 + (l.y - t.location.y) ** 2 + (l.z - t.location.z) ** 2
-            )
-            vehicles = [(distance(x.get_location()), x) for x in vehicles if x.id != world.player.id]
-            for d, vehicle in sorted(vehicles, key=lambda vehicles: vehicles[0]):
-                if d > 200.0:
-                    break
-                vehicle_type = get_actor_display_name(vehicle, truncate=22)
-                self._info_text.append("% 4dm %s" % (d, vehicle_type))
 
     def toggle_info(self):
         self._show_info = not self._show_info
