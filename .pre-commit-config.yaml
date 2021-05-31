@@ -4,5 +4,5 @@ repos:
     - id: format-test
       name: format-test
       language: system
-      entry: bash linting.sh
+      entry: make test
       types: [file]
