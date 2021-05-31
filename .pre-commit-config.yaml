@@ -1,0 +1,8 @@
+repos:
+-   repo: local
+    hooks:
+    - id: format-test
+      name: format-test
+      language: system
+      entry: make test
+      types: [file]
