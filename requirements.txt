@@ -1,2 +1,10 @@
 numpy
 pygame
+
+black
+isort
+flake8
+pylint
+pytest
+pytest-pylint
+pytest-flake8
