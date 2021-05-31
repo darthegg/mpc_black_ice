@@ -42,6 +42,7 @@ Use ARROWS or WASD keys for control.
 import glob
 import os
 import sys
+import time
 
 import pygame
 from pygame import locals
@@ -64,19 +65,24 @@ class KeyboardControl:
         self._carsim_enabled = False
         self._carsim_road = False
         self._autopilot_enabled = start_in_autopilot
-        if isinstance(world.player, carla.Vehicle):
-            self._control = carla.VehicleControl()
-            self._lights = carla.VehicleLightState.NONE
-            world.player.set_autopilot(self._autopilot_enabled)
-            world.player.set_light_state(self._lights)
-        else:
-            raise NotImplementedError("Actor type not supported")
+        self._control = carla.VehicleControl()
+        self._lights = carla.VehicleLightState.NONE
+        world.player.set_autopilot(self._autopilot_enabled)
+        world.player.set_light_state(self._lights)
         self._steer_cache = 0.0
-        world.hud.notification("Press 'H' or '?' for help.", seconds=4.0)
+
+        self._restart_brake(world)
+
+    def _restart_brake(self, world):
+        """Prevent vehicle from initial slip."""
+        self._control.hand_brake = True
+        timeout = time.time() + 0.5
+        while time.time() < timeout:
+            world.player.apply_control(self._control)
+        self._control.hand_brake = False
 
     def parse_events(self, client, world, clock):
-        if isinstance(self._control, carla.VehicleControl):
-            current_lights = self._lights
+        current_lights = self._lights
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.end_control = True
@@ -90,6 +96,7 @@ class KeyboardControl:
                         world.player.set_autopilot(True)
                     else:
                         world.restart()
+                    self._restart_brake(world)
                 if event.key == locals.K_F1:
                     world.hud.toggle_info()
                 if event.key == locals.K_v and pygame.key.get_mods() & locals.KMOD_SHIFT:
@@ -108,10 +115,6 @@ class KeyboardControl:
                     world.camera_manager.toggle_camera()
                 if event.key == locals.K_g:
                     world.toggle_radar()
-                if event.key == locals.K_BACKQUOTE:
-                    world.camera_manager.next_sensor()
-                if event.key == locals.K_n:
-                    world.camera_manager.next_sensor()
                 if event.key == locals.K_w and (pygame.key.get_mods() & locals.KMOD_CTRL):
                     if world.constant_velocity_enabled:
                         world.player.disable_constant_velocity()
@@ -121,8 +124,6 @@ class KeyboardControl:
                         world.player.enable_constant_velocity(carla.Vector3D(17, 0, 0))
                         world.constant_velocity_enabled = True
                         world.hud.notification("Enabled Constant Velocity Mode at 60 km/h")
-                if event.key > locals.K_0 and event.key <= locals.K_9:
-                    world.camera_manager.set_sensor(event.key - 1 - locals.K_0)
                 if event.key == locals.K_r and not pygame.key.get_mods() & locals.KMOD_CTRL:
                     world.camera_manager.toggle_recording()
                 if event.key == locals.K_r and (pygame.key.get_mods() & locals.KMOD_CTRL):
@@ -139,7 +140,6 @@ class KeyboardControl:
                     client.stop_recorder()
                     world.recording_enabled = False
                     # work around to fix camera at start of replaying
-                    current_index = world.camera_manager.index
                     world.destroy_sensors()
                     # disable autopilot
                     self._autopilot_enabled = False
@@ -147,7 +147,7 @@ class KeyboardControl:
                     world.hud.notification("Replaying file 'manual_recording.rec'")
                     # replayer
                     client.replay_file("manual_recording.rec", world.recording_start, 0, 0)
-                    world.camera_manager.set_sensor(current_index)
+                    world.camera_manager.set_sensor()
                 if event.key == locals.K_k and (pygame.key.get_mods() & locals.KMOD_CTRL):
                     print("k pressed")
                     world.player.enable_carsim("d:/CVC/carsim/DataUE4/ue4simfile.sim")
@@ -171,40 +171,38 @@ class KeyboardControl:
                     else:
                         world.recording_start += 1
                     world.hud.notification("Recording start time is %d" % (world.recording_start))
-                if isinstance(self._control, carla.VehicleControl):
-                    if event.key == locals.K_q:
-                        self._control.gear = 1 if self._control.reverse else -1
-                    if event.key == locals.K_m:
-                        self._control.manual_gear_shift = not self._control.manual_gear_shift
-                        self._control.gear = world.player.get_control().gear
-                        world.hud.notification(
-                            "%s Transmission" % ("Manual" if self._control.manual_gear_shift else "Automatic")
-                        )
-                    if self._control.manual_gear_shift and event.key == locals.K_s:
-                        self._control.gear = max(-1, self._control.gear - 1)
-                    if self._control.manual_gear_shift and event.key == locals.K_w:
-                        self._control.gear = self._control.gear + 1
-                    if event.key == locals.K_p and not pygame.key.get_mods() & locals.KMOD_CTRL:
-                        self._autopilot_enabled = not self._autopilot_enabled
-                        world.player.set_autopilot(self._autopilot_enabled)
-                        world.hud.notification("Autopilot %s" % ("On" if self._autopilot_enabled else "Off"))
+                if event.key == locals.K_q:
+                    self._control.gear = 1 if self._control.reverse else -1
+                if event.key == locals.K_m:
+                    self._control.manual_gear_shift = not self._control.manual_gear_shift
+                    self._control.gear = world.player.get_control().gear
+                    world.hud.notification(
+                        "%s Transmission" % ("Manual" if self._control.manual_gear_shift else "Automatic")
+                    )
+                if self._control.manual_gear_shift and event.key == locals.K_s:
+                    self._control.gear = max(-1, self._control.gear - 1)
+                if self._control.manual_gear_shift and event.key == locals.K_w:
+                    self._control.gear = self._control.gear + 1
+                if event.key == locals.K_p and not pygame.key.get_mods() & locals.KMOD_CTRL:
+                    self._autopilot_enabled = not self._autopilot_enabled
+                    world.player.set_autopilot(self._autopilot_enabled)
+                    world.hud.notification("Autopilot %s" % ("On" if self._autopilot_enabled else "Off"))
 
         if not self._autopilot_enabled:
-            if isinstance(self._control, carla.VehicleControl):
-                self._parse_vehicle_keys(pygame.key.get_pressed(), clock.get_time())
-                self._control.reverse = self._control.gear < 0
-                # Set automatic control-related vehicle lights
-                if self._control.brake:
-                    current_lights |= carla.VehicleLightState.Brake
-                else:  # Remove the Brake flag
-                    current_lights &= ~carla.VehicleLightState.Brake
-                if self._control.reverse:
-                    current_lights |= carla.VehicleLightState.Reverse
-                else:  # Remove the Reverse flag
-                    current_lights &= ~carla.VehicleLightState.Reverse
-                if current_lights != self._lights:  # Change the light state only if necessary
-                    self._lights = current_lights
-                    world.player.set_light_state(carla.VehicleLightState(self._lights))
+            self._parse_vehicle_keys(pygame.key.get_pressed(), clock.get_time())
+            self._control.reverse = self._control.gear < 0
+            # Set automatic control-related vehicle lights
+            if self._control.brake:
+                current_lights |= carla.VehicleLightState.Brake
+            else:  # Remove the Brake flag
+                current_lights &= ~carla.VehicleLightState.Brake
+            if self._control.reverse:
+                current_lights |= carla.VehicleLightState.Reverse
+            else:  # Remove the Reverse flag
+                current_lights &= ~carla.VehicleLightState.Reverse
+            if current_lights != self._lights:  # Change the light state only if necessary
+                self._lights = current_lights
+                world.player.set_light_state(carla.VehicleLightState(self._lights))
             world.player.apply_control(self._control)
 
     def _parse_vehicle_keys(self, keys, milliseconds):

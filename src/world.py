@@ -1,6 +1,5 @@
 import glob
 import os
-import random
 import sys
 
 sys.path.append(
@@ -62,28 +61,22 @@ class World:
         self.player_max_speed = 1.589
         self.player_max_speed_fast = 3.713
         # Keep same camera config if the camera manager exists.
-        cam_index = self.camera_manager.index if self.camera_manager is not None else 0
         cam_pos_index = self.camera_manager.transform_index if self.camera_manager is not None else 0
 
         blueprint_library = self.world.get_blueprint_library()
         blueprint = blueprint_library.filter("model3")[0]
 
+        spawn_point = carla.Transform()
+        spawn_point.location.x = 12.0
+        spawn_point.location.y = -240.0
+        spawn_point.location.z = 0.3
+        spawn_point.rotation.yaw = 21.7
+        # Goal: (67.5, 0.0)
+
         # Spawn the player.
         if self.player is not None:
-            spawn_point = self.player.get_transform()
-            spawn_point.location.z += 2.0
-            spawn_point.rotation.roll = 0.0
-            spawn_point.rotation.pitch = 0.0
             self.destroy()
-            self.player = self.world.try_spawn_actor(blueprint, spawn_point)
-        while self.player is None:
-            if not self.map.get_spawn_points():
-                print("There are no spawn points available in your map/town.")
-                print("Please add some Vehicle Spawn Point to your UE4 scene.")
-                sys.exit(1)
-            spawn_points = self.map.get_spawn_points()
-            spawn_point = random.choice(spawn_points) if spawn_points else carla.Transform()
-            self.player = self.world.try_spawn_actor(blueprint, spawn_point)
+        self.player = self.world.try_spawn_actor(blueprint, spawn_point)
 
         # # Set up wheel physics
         # front_left_wheel  = carla.WheelPhysicsControl(
@@ -110,7 +103,7 @@ class World:
         self.imu_sensor = IMUSensor(self.player)
         self.camera_manager = CameraManager(self.player, self.hud, self._gamma)
         self.camera_manager.transform_index = cam_pos_index
-        self.camera_manager.set_sensor(cam_index, notify=False)
+        self.camera_manager.set_sensor()
         actor_type = get_actor_display_name(self.player)
         self.hud.notification(actor_type)
 
